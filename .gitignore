@@ -1,0 +1,4 @@
+node_modules/
+build/
+.lock-waf*
+pebble_screenshot_*.png

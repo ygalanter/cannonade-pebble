@@ -1,0 +1,81 @@
+{
+  "name": "cannonade-pebble",
+  "author": "Yuriy Galanter",
+  "version": "1.0.0",
+  "keywords": [
+    "pebble-app"
+  ],
+  "private": true,
+  "scripts": {
+    "build": "pebble build",
+    "clean": "pebble clean",
+    "start": "pebble build && pebble install --emulator emery"
+  },
+  "pebble": {
+    "displayName": "Cannonade",
+    "uuid": "2b354893-b42e-4657-a317-55bcb74e05bc",
+    "projectType": "native",
+    "sdkVersion": "3",
+    "targetPlatforms": [
+      "emery"
+    ],
+    "watchapp": {
+      "watchface": false
+    },
+    "resources": {
+      "media": [
+        {
+          "type": "png",
+          "name": "MENU_ICON",
+          "file": "images/icon.png",
+          "menuIcon": true
+        },
+        {
+          "type": "bitmap",
+          "name": "BACKGROUND",
+          "file": "images/background.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BUILDING_1",
+          "file": "images/building_1.png"
+        },
+        {
+          "type": "bitmap",
+          "name": "BUILDING_2",
+          "file": "images/building_2.png"
+        },
+        {
+          "type": "png",
+          "name": "FORT_GREEN",
+          "file": "images/fort_green.png"
+        },
+        {
+          "type": "png",
+          "name": "FORT_RED",
+          "file": "images/fort_red.png"
+        },
+        {
+          "type": "png",
+          "name": "ANGLE_RIGHT_GREEN",
+          "file": "images/angle_right_green.png"
+        },
+        {
+          "type": "png",
+          "name": "ANGLE_LEFT_RED",
+          "file": "images/angle_left_red.png"
+        },
+        {
+          "type": "png",
+          "name": "SPEED_GREEN",
+          "file": "images/speed_green.png"
+        },
+        {
+          "type": "png",
+          "name": "SPEED_RED",
+          "file": "images/speed_red.png"
+        }
+      ]
+    }
+  }
+}
