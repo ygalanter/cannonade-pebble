@@ -8,9 +8,11 @@
 #define GRAVITY 9.8f
 
 #define PERSIST_LEVEL_INDEX 1
-#define PERSIST_HUMAN_SCORE 2
-#define PERSIST_COMPUTER_SCORE 3
 #define PERSIST_LAST_LOST_HUMAN 4
+#define PERSIST_LIGHT_ON_FIRE 5
+#define PERSIST_LIGHT_ON_EXPLOSION 6
+#define PERSIST_DIM_ON_TOUCH 7
+#define PERSIST_SCORES_BASE 10
 
 #define COUNT_OF(a) ((int)(sizeof(a) / sizeof((a)[0])))
 
@@ -125,6 +127,9 @@ static int s_level_index = 1;
 static int s_human_score;
 static int s_computer_score;
 static bool s_last_lost_human = true;
+static bool s_light_on_fire = false;
+static bool s_light_on_explosion = false;
+static bool s_dim_on_touch = false;
 static bool s_title_is_game_over;
 static char s_game_over_title[16] = "CANNONADE";
 
@@ -146,6 +151,7 @@ static bool s_explosion_visible;
 static int s_explosion_x;
 static int s_explosion_y;
 static int s_explosion_frame;
+static GColor s_explosion_color;
 
 static int s_anim_building_index = -1;
 static int s_anim_start_top;
@@ -213,13 +219,6 @@ static float level_value(void) {
   return LEVELS[s_level_index].value;
 }
 
-static void save_state(void) {
-  persist_write_int(PERSIST_LEVEL_INDEX, s_level_index);
-  persist_write_int(PERSIST_HUMAN_SCORE, s_human_score);
-  persist_write_int(PERSIST_COMPUTER_SCORE, s_computer_score);
-  persist_write_bool(PERSIST_LAST_LOST_HUMAN, s_last_lost_human);
-}
-
 static int read_persisted_int(int key, int fallback, int min, int max) {
   if (!persist_exists(key)) {
     return fallback;
@@ -227,12 +226,33 @@ static int read_persisted_int(int key, int fallback, int min, int max) {
   return clamp_int(persist_read_int(key), min, max);
 }
 
+static void save_scores(void) {
+  persist_write_int(PERSIST_SCORES_BASE + s_level_index * 2, s_human_score);
+  persist_write_int(PERSIST_SCORES_BASE + s_level_index * 2 + 1, s_computer_score);
+}
+
+static void load_scores(void) {
+  s_human_score = read_persisted_int(PERSIST_SCORES_BASE + s_level_index * 2, 0, 0, 99);
+  s_computer_score = read_persisted_int(PERSIST_SCORES_BASE + s_level_index * 2 + 1, 0, 0, 99);
+}
+
+static void save_state(void) {
+  persist_write_int(PERSIST_LEVEL_INDEX, s_level_index);
+  save_scores();
+  persist_write_bool(PERSIST_LAST_LOST_HUMAN, s_last_lost_human);
+}
+
 static void load_state(void) {
   s_level_index = read_persisted_int(PERSIST_LEVEL_INDEX, 1, 0, COUNT_OF(LEVELS) - 1);
-  s_human_score = read_persisted_int(PERSIST_HUMAN_SCORE, 0, 0, 99);
-  s_computer_score = read_persisted_int(PERSIST_COMPUTER_SCORE, 0, 0, 99);
+  load_scores();
   s_last_lost_human = persist_exists(PERSIST_LAST_LOST_HUMAN) ?
                       persist_read_bool(PERSIST_LAST_LOST_HUMAN) : true;
+  s_light_on_fire = persist_exists(PERSIST_LIGHT_ON_FIRE) ?
+                    persist_read_bool(PERSIST_LIGHT_ON_FIRE) : false;
+  s_light_on_explosion = persist_exists(PERSIST_LIGHT_ON_EXPLOSION) ?
+                         persist_read_bool(PERSIST_LIGHT_ON_EXPLOSION) : false;
+  s_dim_on_touch = persist_exists(PERSIST_DIM_ON_TOUCH) ?
+                   persist_read_bool(PERSIST_DIM_ON_TOUCH) : false;
 }
 
 static void set_wind(void) {
@@ -487,12 +507,27 @@ static HitType hit_building(float x, int y) {
   return HIT_MISS;
 }
 
+static void update_explosion_backlight(int frame) {
+  if (!s_light_on_explosion) return;
+  uint8_t intensity = (uint8_t)(255 - (frame * 255 / 28));
+  uint32_t rgb;
+  if (gcolor_equal(s_explosion_color, GColorGreen)) {
+    rgb = ((uint32_t)0 << 16) | ((uint32_t)intensity << 8) | 0;
+  } else {
+    rgb = ((uint32_t)intensity << 16) | 0 | 0;
+  }
+  light_set_color_rgb888(rgb);
+  light_enable_interaction();
+}
+
 static void begin_explosion(PendingAction action) {
   s_pending_action = action;
+  s_explosion_color = s_shell_color;
   s_shell_visible = false;
   s_explosion_visible = true;
   s_explosion_frame = 0;
   s_mode = MODE_EXPLODING;
+  update_explosion_backlight(0);
   schedule_frame();
 }
 
@@ -635,7 +670,7 @@ static void start_human_fire(void) {
   s_mode = MODE_SHOT_HUMAN;
 
   play_sound(SOUND_FIRE, COUNT_OF(SOUND_FIRE), 80);
-  light_enable_interaction();
+  if (s_light_on_fire) light_enable_interaction();
   schedule_frame();
 }
 
@@ -680,11 +715,14 @@ static void start_computer_fire(void) {
   s_mode = MODE_SHOT_COMPUTER;
 
   play_sound(SOUND_FIRE, COUNT_OF(SOUND_FIRE), 80);
-  light_enable_interaction();
+  if (s_light_on_fire) light_enable_interaction();
   schedule_frame();
 }
 
 static void complete_explosion(void) {
+  if (s_light_on_explosion) {
+    light_set_system_color();
+  }
   s_explosion_visible = false;
 
   if (s_anim_building_index >= 0) {
@@ -765,6 +803,7 @@ static void frame_timer(void *context) {
       if (s_explosion_frame >= 28) {
         complete_explosion();
       } else {
+        update_explosion_backlight(s_explosion_frame);
         schedule_frame();
       }
       break;
@@ -790,7 +829,6 @@ static void begin_from_title(void) {
   }
 
   s_title_is_game_over = false;
-  light_enable_interaction();
 
   if (s_last_lost_human) {
     s_view_offset = -s_screen_w + 3;
@@ -808,7 +846,9 @@ static void set_level_index(int level_index, bool should_persist) {
   int next_level = clamp_int(level_index, 0, COUNT_OF(LEVELS) - 1);
 
   if (next_level != s_level_index) {
+    save_scores();
     s_level_index = next_level;
+    load_scores();
     reset_computer_errors();
   }
 
@@ -890,6 +930,12 @@ static void handle_touch_point(GPoint point) {
   handle_play_touch(point);
 }
 
+static void dim_backlight(void) {
+  if (s_dim_on_touch && s_mode != MODE_EXPLODING) {
+    light_set_color_rgb888(0x050505);
+  }
+}
+
 static void touch_handler(const TouchEvent *event, void *context) {
   (void)context;
 
@@ -899,11 +945,13 @@ static void touch_handler(const TouchEvent *event, void *context) {
 
   if (event->type == TouchEvent_Touchdown) {
     handle_play_aim(GPoint(event->x, event->y));
+    dim_backlight();
     return;
   }
 
   if (event->type == TouchEvent_Liftoff) {
     handle_touch_point(GPoint(event->x, event->y));
+    dim_backlight();
   }
 }
 
@@ -965,6 +1013,27 @@ static void unload_bitmaps(void) {
   destroy_bitmap(&s_img_speed_red);
 }
 
+static void inbox_received(DictionaryIterator *iter, void *ctx) {
+  (void)ctx;
+  Tuple *t_fire = dict_find(iter, MESSAGE_KEY_LIGHT_ON_FIRE);
+  Tuple *t_explosion = dict_find(iter, MESSAGE_KEY_LIGHT_ON_EXPLOSION);
+
+  if (t_fire) {
+    s_light_on_fire = (t_fire->value->int32 != 0);
+    persist_write_bool(PERSIST_LIGHT_ON_FIRE, s_light_on_fire);
+  }
+  if (t_explosion) {
+    s_light_on_explosion = (t_explosion->value->int32 != 0);
+    persist_write_bool(PERSIST_LIGHT_ON_EXPLOSION, s_light_on_explosion);
+  }
+
+  Tuple *t_dim = dict_find(iter, MESSAGE_KEY_DIM_ON_TOUCH);
+  if (t_dim) {
+    s_dim_on_touch = (t_dim->value->int32 != 0);
+    persist_write_bool(PERSIST_DIM_ON_TOUCH, s_dim_on_touch);
+  }
+}
+
 static void app_focus_handler(bool in_focus) {
   if (!in_focus) {
     if (s_frame_timer) {
@@ -998,12 +1067,16 @@ static void window_load(Window *window) {
 
   touch_service_subscribe(touch_handler, NULL);
   app_focus_service_subscribe(app_focus_handler);
+
+  app_message_register_inbox_received(inbox_received);
+  app_message_open(128, 64);
 }
 
 static void window_unload(Window *window) {
   (void)window;
 
   speaker_stop();
+  app_message_deregister_callbacks();
   app_focus_service_unsubscribe();
   touch_service_unsubscribe();
   if (s_frame_timer) {

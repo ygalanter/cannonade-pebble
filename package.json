@@ -1,11 +1,14 @@
 {
   "name": "cannonade-pebble",
   "author": "Yuriy Galanter",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "keywords": [
     "pebble-app"
   ],
   "private": true,
+  "dependencies": {
+    "pebble-clay": "^1.0.4"
+  },
   "scripts": {
     "build": "pebble build",
     "clean": "pebble clean",
@@ -16,12 +19,18 @@
     "uuid": "2b354893-b42e-4657-a317-55bcb74e05bc",
     "projectType": "native",
     "sdkVersion": "3",
+    "enableMultiJS": true,
     "targetPlatforms": [
       "emery"
     ],
     "watchapp": {
       "watchface": false
     },
+    "messageKeys": [
+      "LIGHT_ON_FIRE",
+      "LIGHT_ON_EXPLOSION",
+      "DIM_ON_TOUCH"
+    ],
     "resources": {
       "media": [
         {
