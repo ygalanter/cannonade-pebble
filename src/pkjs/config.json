@@ -1,0 +1,36 @@
+[
+  {
+    "type": "heading",
+    "defaultValue": "Cannonade Settings"
+  },
+  {
+    "type": "section",
+    "items": [
+      {
+        "type": "toggle",
+        "messageKey": "LIGHT_ON_FIRE",
+        "label": "Backlight on Shot Fired",
+        "description": "Flash the backlight when a cannon fires.",
+        "defaultValue": false
+      },
+      {
+        "type": "toggle",
+        "messageKey": "LIGHT_ON_EXPLOSION",
+        "label": "Backlight on Explosion",
+        "description": "Color backlight effect on projectile impact (green or red).",
+        "defaultValue": false
+      },
+      {
+        "type": "toggle",
+        "messageKey": "DIM_ON_TOUCH",
+        "label": "Dim Backlight on Touch",
+        "description": "Dims the backlight on screen tap to minimize unwanted glow.",
+        "defaultValue": false
+      }
+    ]
+  },
+  {
+    "type": "submit",
+    "defaultValue": "Save"
+  }
+]
