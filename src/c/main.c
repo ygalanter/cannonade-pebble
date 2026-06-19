@@ -12,7 +12,10 @@
 #define PERSIST_LIGHT_ON_FIRE 5
 #define PERSIST_LIGHT_ON_EXPLOSION 6
 #define PERSIST_DIM_ON_TOUCH 7
+#define PERSIST_SOUND_VOLUME 8
 #define PERSIST_SCORES_BASE 10
+
+#define DEFAULT_SOUND_VOLUME 100  // matches Clay slider default in src/pkjs/config.json
 
 #define COUNT_OF(a) ((int)(sizeof(a) / sizeof((a)[0])))
 
@@ -130,6 +133,7 @@ static bool s_last_lost_human = true;
 static bool s_light_on_fire = false;
 static bool s_light_on_explosion = false;
 static bool s_dim_on_touch = false;
+static int s_sound_volume = DEFAULT_SOUND_VOLUME;
 static bool s_title_is_game_over;
 static char s_game_over_title[16] = "CANNONADE";
 
@@ -205,8 +209,12 @@ static void mark_scene_dirty(void) {
 }
 
 static void play_sound(const SpeakerNote *notes, uint32_t count, uint8_t volume) {
+  int scaled = clamp_int((int)volume * s_sound_volume / 100, 0, 100);
+  if (scaled <= 0) {
+    return;
+  }
   speaker_stop();
-  speaker_play_notes(notes, count, volume);
+  speaker_play_notes(notes, count, (uint8_t)scaled);
 }
 
 static void schedule_frame(void);
@@ -253,6 +261,9 @@ static void load_state(void) {
                          persist_read_bool(PERSIST_LIGHT_ON_EXPLOSION) : false;
   s_dim_on_touch = persist_exists(PERSIST_DIM_ON_TOUCH) ?
                    persist_read_bool(PERSIST_DIM_ON_TOUCH) : false;
+  s_sound_volume = persist_exists(PERSIST_SOUND_VOLUME) ?
+                   clamp_int(persist_read_int(PERSIST_SOUND_VOLUME), 0, 100) :
+                   DEFAULT_SOUND_VOLUME;
 }
 
 static void set_wind(void) {
@@ -1031,6 +1042,12 @@ static void inbox_received(DictionaryIterator *iter, void *ctx) {
   if (t_dim) {
     s_dim_on_touch = (t_dim->value->int32 != 0);
     persist_write_bool(PERSIST_DIM_ON_TOUCH, s_dim_on_touch);
+  }
+
+  Tuple *t_volume = dict_find(iter, MESSAGE_KEY_SOUND_VOLUME);
+  if (t_volume) {
+    s_sound_volume = clamp_int((int)t_volume->value->int32, 0, 100);
+    persist_write_int(PERSIST_SOUND_VOLUME, s_sound_volume);
   }
 }
 
